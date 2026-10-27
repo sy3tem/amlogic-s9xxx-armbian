@@ -435,7 +435,7 @@ jobs:
           latest_version=$(curl -s \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              https://api.github.com/repos/${{ github.repository }}/releases?per_page=20 | \
+              https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases?per_page=20 | \
               jq -r --arg RTK "Armbian_${{ matrix.release }}_arm64_" \
               --arg BOARD "-trunk_" \
               '[.[] | select(.tag_name | contains($RTK))] |
@@ -467,7 +467,7 @@ jobs:
           echo "status=success" >> ${GITHUB_OUTPUT}
 
       - name: Rebuild Armbian [ ${{ matrix.release }} ]
-        uses: ophub/amlogic-s9xxx-armbian@main
+        uses: ./
         if: ${{ steps.down.outputs.status == 'success' && !cancelled() }}
         with:
           build_target: armbian
