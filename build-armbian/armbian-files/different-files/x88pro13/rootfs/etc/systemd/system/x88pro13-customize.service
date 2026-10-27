@@ -1,0 +1,14 @@
+[Unit]
+Description=x88pro13 first boot customization (apt mirrors + docker)
+ConditionPathExists=!/var/lib/x88pro13-customize.done
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/x88pro13-customize.sh
+RemainAfterExit=yes
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target
