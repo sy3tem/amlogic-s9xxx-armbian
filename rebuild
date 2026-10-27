@@ -959,7 +959,7 @@ replace_kernel() {
     # 04. For /usr/lib/modules/${kernel_name}
     tar -mxzf ${kernel_modules} -C ${tag_rootfs}/usr/lib/modules
     (cd ${tag_rootfs}/usr/lib/modules/${kernel_name}/ && rm -f build source 2>/dev/null && ln -sf /usr/src/${header_path} build)
-    [[ "$(ls ${tag_rootfs}/usr/lib/modules/${kernel_name} -l 2>/dev/null | grep "^d" | wc -l)" -eq "1" ]] || error_msg "/usr/lib/modules kernel folder is missing."
+    [[ "$(ls ${tag_rootfs}/usr/lib/modules/${kernel_name} -l 2>/dev/null | grep "^d" | wc -l)" -ge "1" ]] || error_msg "/usr/lib/modules kernel folder is missing."
 
     # Special procedures for flashing specific boards
     [[ "${adjust_kernel_files}" == "yes" ]] && adjust_kernel_files_cmd
