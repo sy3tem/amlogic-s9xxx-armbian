@@ -1342,7 +1342,6 @@ refactor_rootfs() {
         echo "--- rootfs sanity ---"
         ls -l "${tag_rootfs}/bin/bash" "${tag_rootfs}/usr/bin/bash" "${tag_rootfs}/lib/ld-linux-aarch64.so.1" 2>&1 || true
         df -h "${tag_rootfs}" 2>/dev/null | tail -1 || true
-        cp -f /etc/resolv.conf "${tag_rootfs}/etc/resolv.conf" 2>/dev/null || true
         mount --bind /dev "${tag_rootfs}/dev" 2>/dev/null || true
         mount --bind /dev/pts "${tag_rootfs}/dev/pts" 2>/dev/null || true
         mount -t proc proc "${tag_rootfs}/proc" 2>/dev/null || true
