@@ -942,6 +942,10 @@ replace_kernel() {
     # 02. For /boot/dtb/${PLATFORM}/*
     [[ -d "${tag_bootfs}/dtb/${PLATFORM}" ]] || mkdir -p ${tag_bootfs}/dtb/${PLATFORM}
     tar -mxzf ${kernel_dtb} -C ${tag_bootfs}/dtb/${PLATFORM}
+    # Board-specific dtbs win over the kernel dtb set: rk3528-x88pro13 is not in the upstream set.
+    if [[ -d "${different_bootfs}/dtb/${PLATFORM}" ]]; then
+        cp -f ${different_bootfs}/dtb/${PLATFORM}/*.dtb ${tag_bootfs}/dtb/${PLATFORM}/ 2>/dev/null || true
+    fi
     [[ "${PLATFORM}" == "rockchip" ]] && ln -sf dtb ${tag_bootfs}/dtb-${kernel_name}
     [[ "$(ls ${tag_bootfs}/dtb/${PLATFORM} -l 2>/dev/null | grep "^-" | wc -l)" -ge "2" ]] || error_msg "/boot/dtb/${PLATFORM} files is missing."
 
