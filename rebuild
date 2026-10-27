@@ -909,6 +909,21 @@ copy_files() {
         done
     }
 
+    # Board-level rootfs customization hook (runs inside the staged rootfs)
+    if [[ -f "${tag_rootfs}/usr/local/sbin/x88pro13-customize.sh" ]]; then
+        process_msg "Customizing [ ${board} ] rootfs (mirrors + docker)."
+        cp -f /etc/resolv.conf "${tag_rootfs}/etc/resolv.conf" 2>/dev/null || true
+        mount --bind /dev "${tag_rootfs}/dev" 2>/dev/null || true
+        mount --bind /dev/pts "${tag_rootfs}/dev/pts" 2>/dev/null || true
+        mount -t proc proc "${tag_rootfs}/proc" 2>/dev/null || true
+        mount -t sysfs sysfs "${tag_rootfs}/sys" 2>/dev/null || true
+        chroot "${tag_rootfs}" /bin/bash /usr/local/sbin/x88pro13-customize.sh || echo "WARN: rootfs customization failed, image kept."
+        umount "${tag_rootfs}/sys" 2>/dev/null || true
+        umount "${tag_rootfs}/proc" 2>/dev/null || true
+        umount "${tag_rootfs}/dev/pts" 2>/dev/null || true
+        umount "${tag_rootfs}/dev" 2>/dev/null || true
+    fi
+
     # Remove the .git directories
     rm -rf $(find ${tmp_build} -type d -name '.git')
 }
