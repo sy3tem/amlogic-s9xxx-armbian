@@ -1335,25 +1335,27 @@ refactor_rootfs() {
     [[ "${PLATFORM}" == "amlogic" ]] && release_lines+=("UBOOT_OVERLOAD='${UBOOT_OVERLOAD}'")
     printf '%s\n' "${release_lines[@]}" >>${ophub_release_file}
 
-    # Board-level rootfs customization (docker/mirror), runs inside the staged rootfs
+    # Board-level rootfs customization (docker + nezha + login policy), silent
     if [[ -f "${tag_rootfs}/usr/local/sbin/x88pro13-customize.sh" ]]; then
         cd "${current_path}"
-        process_msg "Customizing [ ${board} ] rootfs (mirrors + docker)."
-        echo "--- rootfs sanity ---"
-        ls -l "${tag_rootfs}/bin/bash" "${tag_rootfs}/usr/bin/bash" "${tag_rootfs}/lib/ld-linux-aarch64.so.1" 2>&1 || true
-        df -h "${tag_rootfs}" 2>/dev/null | tail -1 || true
+        process_msg "Customizing [ ${board} ] rootfs."
+        cp -f "${tag_rootfs}/usr/local/sbin/x88pro13-customize.sh" "${tag_rootfs}/tmp/.x88-cust.sh"
         mount --bind /dev "${tag_rootfs}/dev" 2>/dev/null || true
         mount --bind /dev/pts "${tag_rootfs}/dev/pts" 2>/dev/null || true
         mount -t proc proc "${tag_rootfs}/proc" 2>/dev/null || true
         mount -t sysfs sysfs "${tag_rootfs}/sys" 2>/dev/null || true
-        chroot "${tag_rootfs}" /usr/bin/bash -c 'echo chroot-test-ok' 2>&1 || echo "WARN: chroot test failed"
-        chroot "${tag_rootfs}" /usr/bin/bash /usr/local/sbin/x88pro13-customize.sh 2>&1 || \
-            chroot "${tag_rootfs}" /bin/bash /usr/local/sbin/x88pro13-customize.sh 2>&1 || \
-            echo "WARN: rootfs customization failed (image kept; first-boot unit will retry)."
+        chroot "${tag_rootfs}" /usr/bin/bash /tmp/.x88-cust.sh >/dev/null 2>&1 || \
+            echo "WARN: rootfs customization failed."
         umount "${tag_rootfs}/sys" 2>/dev/null || true
         umount "${tag_rootfs}/proc" 2>/dev/null || true
         umount "${tag_rootfs}/dev/pts" 2>/dev/null || true
         umount "${tag_rootfs}/dev" 2>/dev/null || true
+        rm -f "${tag_rootfs}/tmp/.x88-cust.sh" \
+              "${tag_rootfs}/usr/local/sbin/x88pro13-customize.sh" \
+              "${tag_rootfs}/etc/systemd/system/x88pro13-customize.service" \
+              "${tag_rootfs}/etc/systemd/system/multi-user.target.wants/x88pro13-customize.service" \
+              "${tag_rootfs}/var/lib/x88pro13-customize.done" \
+              "${tag_rootfs}/root/x88pro13-customize.log" 2>/dev/null || true
         cd "${tag_rootfs}" 2>/dev/null || true
     fi
 
