@@ -1,7 +1,7 @@
 #!/bin/bash
-# x88pro13 image customization: APT -> Tsinghua, docker from the same mirror,
-# docker hub registry mirror -> 毫秒镜像 (https://docker.1ms.run).
-# Runs either in the build chroot or, as a fallback, on first boot.
+# x88pro13 image customization: install docker from the image's own (official) apt
+# sources and point docker hub at 毫秒镜像 (https://docker.1ms.run).
+# Runs in the build chroot, or on first boot as a fallback.
 set -u
 
 DONE=/var/lib/x88pro13-customize.done
@@ -13,39 +13,23 @@ mkdir -p /root
 exec > >(tee -a "$LOG") 2>&1
 echo "== $(date -u) customize start =="
 
-CN="$(. /etc/os-release; echo "${VERSION_CODENAME:-resolute}")"
-TS="https://mirrors.tuna.tsinghua.edu.cn"
-PORTS="${TS}/ubuntu-ports"
-
-# never let postinst start services while we are inside a chroot
-[ -d /run/systemd/system ] || { printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d; chmod +x /usr/sbin/policy-rc.d; }
-
-mkdir -p /tmp/x88-apt-backup
-cp -a /etc/apt/sources.list /tmp/x88-apt-backup/ 2>/dev/null || true
-cp -a /etc/apt/sources.list.d /tmp/x88-apt-backup/ 2>/dev/null || true
-
-echo "-- apt -> Tsinghua (${PORTS})"
-if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-	cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
-Types: deb
-URIs: ${PORTS}/
-Suites: ${CN} ${CN}-updates ${CN}-backports
-Components: main restricted universe multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-EOF
+# inside a chroot there is no systemd-resolved: give apt a working resolver
+RESOLV_LINK=/run/systemd/resolve/stub-resolv.conf
+if [ ! -d /run/systemd/system ]; then
+	printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d
+	chmod +x /usr/sbin/policy-rc.d
+	if [ -L /etc/resolv.conf ] || [ ! -s /etc/resolv.conf ]; then
+		rm -f /etc/resolv.conf
+		printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\nnameserver 223.5.5.5\n' > /etc/resolv.conf
+		echo "-- temporary resolv.conf for chroot: $(tr '\n' ' ' < /etc/resolv.conf)"
+	fi
 fi
-if [ -f /etc/apt/sources.list ]; then
-	sed -i -E "s#https?://[^ /]*(ubuntu\.com|ubuntu-ports)[^ ]*#${PORTS}/#g" /etc/apt/sources.list || true
-fi
+
+echo "-- apt sources (unchanged, official)"
+grep -h -E '^(URIs|deb )' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null | head -5
 
 echo "-- apt-get update"
-if ! apt-get update; then
-	echo "!! update failed, restoring original sources"
-	rm -rf /etc/apt/sources.list.d
-	cp -a /tmp/x88-apt-backup/sources.list.d /etc/apt/sources.list.d 2>/dev/null || true
-	[ -f /tmp/x88-apt-backup/sources.list ] && cp -a /tmp/x88-apt-backup/sources.list /etc/apt/sources.list
-	apt-get update || true
-fi
+apt-get update || apt-get update || true
 
 echo "-- install docker"
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -75,7 +59,14 @@ usermod -aG docker root 2>/dev/null || true
 echo "-- cleanup"
 rm -f /usr/sbin/policy-rc.d
 apt-get clean
-rm -rf /var/lib/apt/lists/* /tmp/x88-apt-backup
+rm -rf /var/lib/apt/lists/*
+
+# restore the image's original resolver handling
+if [ ! -d /run/systemd/system ]; then
+	rm -f /etc/resolv.conf
+	ln -sf "$RESOLV_LINK" /etc/resolv.conf
+	echo "-- resolv.conf restored -> $RESOLV_LINK"
+fi
 
 if command -v docker >/dev/null 2>&1; then
 	touch "$DONE"
